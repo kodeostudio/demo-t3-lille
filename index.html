@@ -1,0 +1,505 @@
+<!doctype html>
+<!--
+  KODEO Studio — page « Choisissez votre étage » (démo T3 Lille, v02, 2026-11-11).
+  Images 100 % 3D calculées dans Blender (Cycles) : descente depuis le ciel, façade du vieil immeuble lillois, zoom jusqu'au séjour.
+  Fichiers attendus à côté : media/heros.jpg, media/interieur.jpg, media/etages.js, media/intro/intro_000…071.jpg, media/zoom/zoom_000…059.jpg.
+  Données des lots : données d'exemple (bien fictif), à remplacer par le stock réel du promoteur ou de l'agence.
+-->
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Résidence des Brasseurs — Choisissez votre étage</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Crect width='400' height='400' rx='80' fill='%230E3B2E'/%3E%3Cpath fill='%23F3EFE4' transform='translate(0 196) skewX(-12) translate(0 -196)' d='M84.4 286L84.4 106L145.84 106L145.84 203.92L219.76 106L284.56 106L224.56 181.12L286.96 286L216.88 286L185.68 229.84L140.56 286L84.4 286Z'/%3E%3Cg fill='none' stroke='%23D6FF4A' stroke-width='16' stroke-linecap='round'%3E%3Ccircle cx='300' cy='120' r='34'/%3E%3C/g%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;900&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+  <style>
+    /* Charte KODEO : sapin, citron (un seul accent à la fois), crème, nuit ; Unbounded (titres), Manrope (texte), JetBrains Mono (chiffres). */
+    :root { --sapin: #0e3b2e; --citron: #d6ff4a; --creme: #f3efe4; --nuit: #0a1f18;
+      --muted: rgba(243, 239, 228, .66); --glass: rgba(10, 31, 24, .78); --line: rgba(243, 239, 228, .14);
+      --mono: "JetBrains Mono", ui-monospace, Menlo, monospace; --text: Manrope, -apple-system, "Helvetica Neue", Arial, sans-serif;
+      --titre: Unbounded, Manrope, sans-serif; --r: 14px; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; background: var(--nuit); color: var(--creme);
+      font-family: var(--text); -webkit-font-smoothing: antialiased; touch-action: none; }
+    button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+
+    /* scène : film (descente, zoom), vue d'ensemble, intérieur, contours des étages */
+    #scene { position: fixed; inset: 0; overflow: hidden; background: var(--nuit); }
+    #film, #heros, #interieur { position: absolute; left: 0; top: 0; transform-origin: 0 0; max-width: none; max-height: none; }   /* taille fixée par le cadrage : jamais réduite à la largeur de l'écran */
+    #film { width: 100%; height: 100%; }
+    #heros, #interieur { opacity: 0; transition: opacity .7s; will-change: opacity, transform; }
+    #heros.on, #interieur.on { opacity: 1; }
+    #etages { position: absolute; opacity: 0; transition: opacity .6s; }
+    body.choix #etages { opacity: 1; }
+    body:not(.choix) #etages { pointer-events: none; }
+    body:not(.choix) #etiquette { opacity: 0 !important; }
+    #etages polygon { fill: rgba(214, 255, 74, 0); stroke: rgba(214, 255, 74, 0); stroke-width: 2; vector-effect: non-scaling-stroke;
+      transition: fill .25s, stroke .25s; cursor: pointer; }
+    #etages polygon.vu { fill: rgba(214, 255, 74, .16); stroke: rgba(214, 255, 74, .95); }
+    #etages polygon.choisi { fill: rgba(214, 255, 74, .22); stroke: var(--citron); }
+    .voile { position: absolute; inset: 0; pointer-events: none; background:
+      linear-gradient(90deg, rgba(10, 31, 24, .78) 0%, rgba(10, 31, 24, .35) 30%, rgba(10, 31, 24, 0) 48%),
+      linear-gradient(0deg, rgba(10, 31, 24, .55) 0%, rgba(10, 31, 24, 0) 22%); opacity: 0; transition: opacity .8s; }
+    body.choix .voile, body.dedans .voile { opacity: 1; }
+
+    /* en-tête */
+    #marque { position: fixed; top: max(18px, env(safe-area-inset-top)); left: 22px; width: 118px; z-index: 5; opacity: 0; transition: opacity .8s; }
+    body.pret #marque { opacity: 1; }
+    #mention { position: fixed; right: 22px; bottom: max(14px, env(safe-area-inset-bottom)); z-index: 5; font: 500 9.5px/1.4 var(--mono);
+      letter-spacing: .16em; text-transform: uppercase; color: rgba(243, 239, 228, .5); text-align: right; opacity: 0; transition: opacity .8s; }
+    body.pret #mention { opacity: 1; }
+
+    /* descente : accroche et geste */
+    #accroche { position: fixed; left: 50%; top: 22%; transform: translateX(-50%); width: min(720px, 88vw); text-align: center; z-index: 4;
+      transition: opacity .6s; pointer-events: none; }
+    #accroche .lieu { font: 500 11px/1 var(--mono); letter-spacing: .32em; text-transform: uppercase; color: var(--muted); margin: 0 0 16px; }
+    #accroche h1 { margin: 0; font: 900 clamp(30px, 5.4vw, 64px)/1.02 var(--titre); letter-spacing: -.03em; text-transform: uppercase;
+      text-shadow: 0 2px 30px rgba(10, 31, 24, .45); }
+    #geste { position: fixed; left: 50%; bottom: max(64px, calc(env(safe-area-inset-bottom) + 48px)); transform: translateX(-50%); z-index: 4;
+      display: flex; flex-direction: column; align-items: center; gap: 12px; transition: opacity .6s; }
+    #geste p { margin: 0; font: 600 14px/1 var(--text); color: var(--citron); letter-spacing: .01em; text-shadow: 0 1px 14px rgba(10, 31, 24, .6); }
+    #geste svg { width: 22px; height: 30px; animation: fleche 1.6s ease-in-out infinite; }
+    @keyframes fleche { 0%, 100% { transform: translateY(-3px); opacity: .55; } 50% { transform: translateY(5px); opacity: 1; } }
+    #passer { position: fixed; right: 22px; top: max(20px, env(safe-area-inset-top)); z-index: 6; font: 500 10.5px/1 var(--mono);
+      letter-spacing: .2em; text-transform: uppercase; color: var(--creme); padding: 10px 14px; border: 1px solid var(--line); border-radius: 999px;
+      background: rgba(10, 31, 24, .4); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transition: opacity .5s; }
+    body:not(.descente) #accroche, body:not(.descente) #geste, body:not(.descente) #passer { opacity: 0; pointer-events: none; }
+
+    /* choix de l'étage : colonne de gauche */
+    #choix { position: fixed; left: clamp(22px, 4vw, 64px); top: 50%; transform: translateY(-46%); width: min(380px, 34vw); z-index: 4;
+      opacity: 0; pointer-events: none; transition: opacity .7s, transform .7s; }
+    body.choix #choix { opacity: 1; pointer-events: auto; transform: translateY(-50%); }
+    .surtitre { font: 500 10.5px/1.5 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--muted); margin: 0 0 18px; }
+    .surtitre b { color: var(--creme); font-weight: 500; }
+    #choix h2 { margin: 0 0 16px; font: 900 clamp(28px, 3.3vw, 46px)/1.02 var(--titre); letter-spacing: -.03em; text-transform: uppercase; }
+    #choix .texte { margin: 0 0 26px; font: 500 15px/1.45 var(--text); color: rgba(243, 239, 228, .82); max-width: 330px; }
+    .chiffres { display: flex; gap: 26px; margin: 0 0 26px; padding: 0 0 22px; border-bottom: 1px solid var(--line); }
+    .chiffres div { font: 500 9.5px/1.5 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+    .chiffres strong { display: block; font: 700 26px/1 var(--mono); letter-spacing: -.02em; color: var(--creme); margin-bottom: 6px; }
+    #liste { display: flex; flex-wrap: wrap; gap: 8px; }
+    #liste button { font: 500 10.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; padding: 10px 13px; border-radius: 999px;
+      border: 1px solid var(--line); background: rgba(10, 31, 24, .45); transition: background .2s, color .2s, border-color .2s; }
+    #liste button.vu, #liste button:focus-visible { border-color: var(--citron); outline: none; }
+    #liste button.choisi { background: var(--creme); color: var(--nuit); border-color: var(--creme); }
+
+    /* étiquette qui suit l'étage survolé */
+    #etiquette { position: fixed; z-index: 5; pointer-events: none; padding: 9px 12px 9px 10px; border-radius: 10px; background: var(--glass);
+      border: 1px solid rgba(214, 255, 74, .6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); display: flex; align-items: center; gap: 10px;
+      opacity: 0; transform: translateY(4px); transition: opacity .2s, transform .2s; white-space: nowrap; }
+    #etiquette.on { opacity: 1; transform: none; }
+    #etiquette svg { width: 18px; height: 18px; flex: none; }
+    #etiquette b { font: 700 13px/1 var(--text); display: block; margin-bottom: 4px; }
+    #etiquette span { font: 500 9.5px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+
+    /* panneau de l'étage choisi */
+    #panneau { position: fixed; right: 0; top: 0; bottom: 0; width: min(420px, 100vw); z-index: 7; background: rgba(10, 31, 24, .9);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-left: 1px solid var(--line); transform: translateX(104%);
+      transition: transform .55s cubic-bezier(.2, .8, .2, 1); display: flex; flex-direction: column; }
+    #panneau.ouvert { transform: none; }
+    #panneau header { display: flex; justify-content: space-between; align-items: flex-start; padding: 26px 26px 12px; }
+    #panneau h3 { margin: 6px 0 0; font: 900 30px/1 var(--titre); letter-spacing: -.03em; text-transform: uppercase; }
+    #fermer { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; font-size: 18px; flex: none; }
+    #panneau .corps { overflow-y: auto; padding: 8px 26px 26px; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+    .lot { border: 1px solid var(--line); border-radius: var(--r); padding: 16px 16px 14px; margin: 0 0 12px; }
+    .lot .haut { display: flex; justify-content: space-between; align-items: center; margin: 0 0 8px; }
+    .lot .num { font: 700 13px/1 var(--mono); letter-spacing: .06em; }
+    .statut { font: 500 9px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; padding: 6px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+    .statut.dispo { color: var(--creme); border-color: rgba(243, 239, 228, .5); }
+    .statut.dispo::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--citron); margin-right: 7px; vertical-align: 1px; }
+    .lot .type { font: 700 16px/1.25 var(--text); margin: 0 0 4px; }
+    .lot .info { font: 500 13px/1.4 var(--text); color: var(--muted); margin: 0; }
+    .lot .m2 { font: 500 12px/1 var(--mono); color: var(--creme); margin: 10px 0 0; letter-spacing: .04em; }
+    .plan { margin: 6px 0 4px; border: 1px solid var(--line); border-radius: var(--r); padding: 12px; background: rgba(14, 59, 46, .35); }
+    .plan svg { display: block; width: 100%; height: auto; }
+    .plan p { margin: 8px 2px 0; font: 500 9px/1.4 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: rgba(243, 239, 228, .45); }
+    .prix { display: flex; justify-content: space-between; align-items: baseline; margin: 18px 2px 16px; }
+    .prix span { font: 500 10px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+    .prix b { font: 900 17px/1 var(--titre); text-transform: uppercase; letter-spacing: -.02em; }
+    .action { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 16px 18px; border-radius: 999px;
+      font: 700 14px/1 var(--text); letter-spacing: .01em; background: var(--creme); color: var(--nuit); }
+    .action.accent { background: var(--citron); }
+    .action[disabled] { background: transparent; color: var(--muted); border: 1px dashed var(--line); cursor: default; }
+    .action svg { width: 18px; height: 18px; }
+
+    /* intérieur */
+    #dedans { position: fixed; left: clamp(22px, 4vw, 64px); bottom: max(56px, calc(env(safe-area-inset-bottom) + 40px)); z-index: 4;
+      width: min(460px, 88vw); opacity: 0; pointer-events: none; transform: translateY(10px); transition: opacity .8s .3s, transform .8s .3s; }
+    body.dedans #dedans { opacity: 1; pointer-events: auto; transform: none; }
+    #dedans h2 { margin: 0 0 10px; font: 900 clamp(26px, 3vw, 40px)/1.02 var(--titre); letter-spacing: -.03em; text-transform: uppercase; }
+    #dedans p { margin: 0 0 20px; font: 500 15px/1.45 var(--text); color: rgba(243, 239, 228, .85); }
+    #dedans .boutons { display: flex; gap: 10px; flex-wrap: wrap; }
+    #dedans .boutons .action { width: auto; }
+    .secondaire { padding: 15px 18px; border-radius: 999px; border: 1px solid var(--line); font: 600 14px/1 var(--text); background: rgba(10, 31, 24, .4); }
+
+    /* chargement : le logo KODEO se lève lettre par lettre, le trajet citron suit le chargement et s'arrête sur le repère */
+    #chargement { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: var(--sapin); transition: opacity .9s; }
+    #chargement::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5; mix-blend-mode: soft-light;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E"); }
+    #chargement.fini { opacity: 0; pointer-events: none; }
+    .ch { position: relative; z-index: 1; text-align: center; width: min(520px, 82vw); }
+    #logoCh { display: block; width: 100%; height: auto; overflow: visible; }
+    #logoCh .lettre { transform: translateY(118px); }
+    #logoCh.leve .lettre { transform: none; transition: transform .75s cubic-bezier(.2, .9, .25, 1.05); }
+    #trajetCh { transition: stroke-dashoffset .5s cubic-bezier(.3, 0, .2, 1); }
+    #repereCh { transform-box: fill-box; transform-origin: center; transform: scale(0) rotate(-90deg); transition: transform .5s cubic-bezier(.2, .9, .3, 1.3); }
+    #logoCh.pret #repereCh { transform: none; }
+    .ch .lieu { margin: 34px 0 10px; font: 500 10.5px/1 var(--mono); letter-spacing: .3em; text-transform: uppercase; color: rgba(243, 239, 228, .62); }
+    .ch h2 { margin: 0; font: 600 19px/1.2 var(--text); }
+    .ch .etat { margin: 18px 0 0; font: 400 10px/1 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: rgba(243, 239, 228, .45); }
+
+    /* téléphone : la façade en haut, le texte en bas, le panneau monte du bas */
+    @media (max-aspect-ratio: 1/1) {
+      .voile { background: linear-gradient(0deg, rgba(10, 31, 24, .96) 0%, rgba(10, 31, 24, .82) 30%, rgba(10, 31, 24, 0) 52%); }
+      #choix { left: 20px; right: 20px; width: auto; top: auto; bottom: max(18px, env(safe-area-inset-bottom)); transform: translateY(12px); }
+      body.choix #choix { transform: none; }
+      #choix h2 { font-size: 27px; margin-bottom: 10px; }
+      #choix .texte { font-size: 14px; margin-bottom: 14px; }
+      .chiffres { gap: 18px; margin-bottom: 14px; padding-bottom: 14px; }
+      .chiffres strong { font-size: 21px; }
+      .surtitre { margin-bottom: 10px; }
+      #panneau { top: auto; height: 78vh; width: 100vw; border-left: 0; border-top: 1px solid var(--line); border-radius: 22px 22px 0 0; transform: translateY(104%); }
+      #mention { display: none; }
+      #accroche { top: 16%; }
+      #dedans { left: 20px; right: 20px; width: auto; }
+    }
+  </style>
+</head>
+<body class="descente">
+  <div id="scene">
+    <canvas id="film"></canvas>
+    <img id="heros" alt="Façade de la Résidence des Brasseurs, vieil immeuble lillois en brique et pierre, au coucher du soleil">
+    <img id="interieur" alt="Séjour du T3 rénové du 2e étage, à la tombée du jour">
+    <div class="voile"></div>
+    <svg id="etages" viewBox="0 0 1 1" preserveAspectRatio="none" aria-label="Étages de l'immeuble"></svg>
+  </div>
+
+  <svg id="marque" viewBox="10 22 640 196" aria-label="KODEO Studio"><g fill="#f3efe4" transform="translate(0 82) skewX(-12) translate(0 -82)"><path d="M47.44 128.5L47.44 35.5L79.18 35.5L79.18 86.09L117.38 35.5L150.86 35.5L119.86 74.31L152.1 128.5L115.89 128.5L99.77 99.48L76.46 128.5L47.44 128.5Z"/><path d="M207.79 130.73Q190.8 130.73 178.09 124.66Q165.38 118.58 158.32 107.61Q151.25 96.63 151.25 82Q151.25 67.37 158.32 56.39Q165.38 45.42 178.09 39.34Q190.8 33.27 207.79 33.27Q224.78 33.27 237.49 39.34Q250.2 45.42 257.27 56.39Q264.34 67.37 264.34 82Q264.34 96.63 257.27 107.61Q250.2 118.58 237.49 124.66Q224.78 130.73 207.79 130.73Z M207.79 102.21Q219.2 102.21 225.65 96.82Q232.1 91.42 232.1 82Q232.1 72.45 225.65 67.12Q219.2 61.79 207.79 61.79Q196.51 61.79 190 67.12Q183.49 72.45 183.49 82Q183.49 91.42 190 96.82Q196.51 102.21 207.79 102.21Z"/><path d="M321.4 35.5Q338.38 35.5 351.09 41.27Q363.8 47.03 370.87 57.45Q377.94 67.86 377.94 82Q377.94 96.01 370.87 106.49Q363.8 116.97 351.09 122.73Q338.38 128.5 321.4 128.5L272.04 128.5L272.04 35.5L321.4 35.5Z M323.88 64.02L303.79 64.02L303.79 99.98L323.88 99.98Q334.17 99.98 339.93 95.21Q345.7 90.43 345.7 82Q345.7 73.57 339.93 68.79Q334.17 64.02 323.88 64.02Z"/><path d="M468.6 70.96L468.6 93.04L418.63 93.04L417.02 103.2L473.19 103.2L473.19 128.5L383.17 128.5L389.99 82L383.17 35.5L472.57 35.5L472.57 60.8L417.02 60.8L418.63 70.96L468.6 70.96Z"/><path d="M535.71 130.73Q518.72 130.73 506.01 124.66Q493.3 118.58 486.23 107.61Q479.16 96.63 479.16 82Q479.16 67.37 486.23 56.39Q493.3 45.42 506.01 39.34Q518.72 33.27 535.71 33.27Q552.7 33.27 565.41 39.34Q578.12 45.42 585.18 56.39Q592.25 67.37 592.25 82Q592.25 96.63 585.18 107.61Q578.12 118.58 565.41 124.66Q552.7 130.73 535.71 130.73Z M535.71 102.21Q547.12 102.21 553.56 96.82Q560.01 91.42 560.01 82Q560.01 72.45 553.56 67.12Q547.12 61.79 535.71 61.79Q524.42 61.79 517.91 67.12Q511.4 72.45 511.4 82Q511.4 91.42 517.91 96.82Q524.42 102.21 535.71 102.21Z"/></g><path d="M38 158 C 140 230, 240 110, 350 170 S 540 215, 598 150" fill="none" stroke="#d6ff4a" stroke-width="10" stroke-linecap="round"/><circle cx="38" cy="158" r="12" fill="#d6ff4a"/><g fill="none" stroke="#d6ff4a" stroke-width="6" stroke-linecap="round"><circle cx="612" cy="134" r="22"/><line x1="612" y1="109" x2="612" y2="159"/><line x1="587" y1="134" x2="637" y2="134"/></g></svg>
+  <p id="mention">Images 3D KODEO Studio · bien et lots fictifs<br>données d'exemple</p>
+
+  <div id="accroche"><p class="lieu">Lille · Vieux-Lille</p><h1>Résidence<br>des Brasseurs</h1></div>
+  <div id="geste"><p id="gesteTexte">Faites défiler pour descendre</p>
+    <svg viewBox="0 0 22 30" fill="none" stroke="#d6ff4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3v22M3 17l8 8 8-8"/></svg></div>
+  <button id="passer" type="button">Passer</button>
+
+  <section id="choix" aria-label="Choix de l'étage">
+    <p class="surtitre"><b>01</b> — Résidence des Brasseurs<br>Vieux-Lille · 1890 · rénovée en 2026</p>
+    <h2>Choisissez<br>votre étage.</h2>
+    <p class="texte" id="choixTexte">Survolez la façade : chaque étage s'éclaire. Cliquez pour voir ses appartements.</p>
+    <div class="chiffres"><div><strong>5</strong>niveaux</div><div><strong>5</strong>lots</div><div><strong>2</strong>disponibles</div></div>
+    <div id="liste"></div>
+  </section>
+
+  <div id="etiquette"><svg viewBox="0 0 24 24" fill="none" stroke="#d6ff4a" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 2v20M2 12h20"/></svg>
+    <div><b id="etiqTitre"></b><span id="etiqInfo"></span></div></div>
+
+  <aside id="panneau" aria-label="Appartements de l'étage">
+    <header><div><p class="surtitre" id="pSur" style="margin:0"></p><h3 id="pTitre"></h3></div><button id="fermer" type="button" aria-label="Fermer">✕</button></header>
+    <div class="corps" id="pCorps"></div>
+  </aside>
+
+  <section id="dedans" aria-label="Le séjour">
+    <p class="surtitre"><b>A21</b> — 2e étage · T3 rénové · 63 m²</p>
+    <h2>Vous êtes chez vous.</h2>
+    <p>Séjour de 31 m² ouvert sur le balcon filant, cuisine en L, deux chambres. Lumière du soir, côté rue.</p>
+    <div class="boutons">
+      <a class="action accent" id="lancer" href="visite_v02/index.html" style="text-decoration:none">Lancer la visite 3D
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      <button class="secondaire" id="retour" type="button">Revenir à la façade</button>
+    </div>
+  </section>
+
+  <div id="chargement"><div class="ch"><svg id="logoCh" viewBox="10 22 640 196" aria-label="KODEO"><defs><clipPath id="sol"><rect x="0" y="-60" width="700" height="191"/></clipPath></defs><g clip-path="url(#sol)"><g fill="#f3efe4" transform="translate(0 82) skewX(-12) translate(0 -82)"><g class="lettre" style="transition-delay:0s"><path d="M47.44 128.5L47.44 35.5L79.18 35.5L79.18 86.09L117.38 35.5L150.86 35.5L119.86 74.31L152.1 128.5L115.89 128.5L99.77 99.48L76.46 128.5L47.44 128.5Z"/></g><g class="lettre" style="transition-delay:.08s"><path d="M207.79 130.73Q190.8 130.73 178.09 124.66Q165.38 118.58 158.32 107.61Q151.25 96.63 151.25 82Q151.25 67.37 158.32 56.39Q165.38 45.42 178.09 39.34Q190.8 33.27 207.79 33.27Q224.78 33.27 237.49 39.34Q250.2 45.42 257.27 56.39Q264.34 67.37 264.34 82Q264.34 96.63 257.27 107.61Q250.2 118.58 237.49 124.66Q224.78 130.73 207.79 130.73Z M207.79 102.21Q219.2 102.21 225.65 96.82Q232.1 91.42 232.1 82Q232.1 72.45 225.65 67.12Q219.2 61.79 207.79 61.79Q196.51 61.79 190 67.12Q183.49 72.45 183.49 82Q183.49 91.42 190 96.82Q196.51 102.21 207.79 102.21Z"/></g><g class="lettre" style="transition-delay:.16s"><path d="M321.4 35.5Q338.38 35.5 351.09 41.27Q363.8 47.03 370.87 57.45Q377.94 67.86 377.94 82Q377.94 96.01 370.87 106.49Q363.8 116.97 351.09 122.73Q338.38 128.5 321.4 128.5L272.04 128.5L272.04 35.5L321.4 35.5Z M323.88 64.02L303.79 64.02L303.79 99.98L323.88 99.98Q334.17 99.98 339.93 95.21Q345.7 90.43 345.7 82Q345.7 73.57 339.93 68.79Q334.17 64.02 323.88 64.02Z"/></g><g class="lettre" style="transition-delay:.24s"><path d="M468.6 70.96L468.6 93.04L418.63 93.04L417.02 103.2L473.19 103.2L473.19 128.5L383.17 128.5L389.99 82L383.17 35.5L472.57 35.5L472.57 60.8L417.02 60.8L418.63 70.96L468.6 70.96Z"/></g><g class="lettre" style="transition-delay:.32s"><path d="M535.71 130.73Q518.72 130.73 506.01 124.66Q493.3 118.58 486.23 107.61Q479.16 96.63 479.16 82Q479.16 67.37 486.23 56.39Q493.3 45.42 506.01 39.34Q518.72 33.27 535.71 33.27Q552.7 33.27 565.41 39.34Q578.12 45.42 585.18 56.39Q592.25 67.37 592.25 82Q592.25 96.63 585.18 107.61Q578.12 118.58 565.41 124.66Q552.7 130.73 535.71 130.73Z M535.71 102.21Q547.12 102.21 553.56 96.82Q560.01 91.42 560.01 82Q560.01 72.45 553.56 67.12Q547.12 61.79 535.71 61.79Q524.42 61.79 517.91 67.12Q511.4 72.45 511.4 82Q511.4 91.42 517.91 96.82Q524.42 102.21 535.71 102.21Z"/></g></g></g><path id="trajetCh" d="M38 158 C 140 230, 240 110, 350 170 S 540 215, 598 150" stroke-dasharray="700" stroke-dashoffset="700" pathLength="700" fill="none" stroke="#d6ff4a" stroke-width="10" stroke-linecap="round"/><circle cx="38" cy="158" r="12" fill="#d6ff4a"/><g id="repereCh" fill="none" stroke="#d6ff4a" stroke-width="6" stroke-linecap="round"><circle cx="612" cy="134" r="22" fill="#0e3b2e"/><line x1="612" y1="109" x2="612" y2="159"/><line x1="587" y1="134" x2="637" y2="134"/></g></svg>
+    <p class="lieu">Lille · Vieux-Lille</p><h2>Résidence des Brasseurs</h2><p class="etat" id="chEtat">Chargement de l'immeuble</p></div></div>
+
+  <script src="media/etages.js"></script>
+  <script>
+  (function () {
+    "use strict";
+    var N_INTRO = 72, N_ZOOM = 60;
+    var body = document.body;
+    var film = document.getElementById("film"), ctx = film.getContext("2d");
+    var heros = document.getElementById("heros"), interieur = document.getElementById("interieur");
+    var svg = document.getElementById("etages");
+    var E = window.ETAGES || { image: [2560, 1440], etages: {} };
+    var IW = E.image[0], IH = E.image[1];
+
+    // ---------------- données d'exemple des lots (à remplacer par le stock réel)
+    var NIVEAUX = [
+      { id: "combles", nom: "Combles", court: "Combles", lots: [{ n: "A41", type: "T2 sous les toits", m2: "41 m²", info: "Lucarnes en pierre, vue sur les toits du Vieux-Lille", statut: "vendu" }] },
+      { id: "3", nom: "3e étage", court: "3e", lots: [{ n: "A31", type: "T3", m2: "63 m²", info: "Balconnets en fer forgé, double exposition", statut: "disponible", bientot: true }] },
+      { id: "2", nom: "2e étage", court: "2e", lots: [{ n: "A21", type: "T3 rénové", m2: "63 m² + balcon 4,6 m²", info: "Balcon filant sur rue, séjour de 31 m², cuisine en L", statut: "disponible", visite: true }] },
+      { id: "1", nom: "1er étage", court: "1er", lots: [{ n: "A11", type: "T3", m2: "64 m²", info: "Balconnets, parquet et moulures d'origine", statut: "réservé" }] },
+      { id: "rdc", nom: "Rez-de-chaussée", court: "RDC", lots: [{ n: "L01", type: "Local professionnel", m2: "52 m²", info: "Vitrine sur rue, accès à la cour", statut: "loué" }] }
+    ];
+    var PAR_ID = {}; NIVEAUX.forEach(function (n) { PAR_ID[n.id] = n; });
+
+    // plan du T3 (cotes intérieures du modèle 3D, en mètres ; la rue est en bas)
+    var PIECES = [["Séjour", 0, 4.6, 0, 6.8, "31 m²"], ["Chambre 1", 4.7, 9.6, 0, 3.0, "14,7 m²"], ["Entrée", 4.7, 9.6, 3.1, 4.2, "5,4 m²"],
+                  ["Salle d'eau", 4.7, 6.4, 4.3, 6.8, "4,2 m²"], ["Chambre 2", 6.5, 9.6, 4.3, 6.8, "7,7 m²"]];
+    function planSVG() {
+      var s = 32, W = 9.6 * s + 24, H = (6.8 + 0.7) * s + 24, o = 12, t = [];
+      t.push('<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">');
+      t.push('<rect x="' + o + '" y="' + (o + 6.8 * s) + '" width="' + (9.4 * s) + '" height="' + (0.55 * s) + '" fill="none" stroke="rgba(243,239,228,.35)" stroke-dasharray="3 3"/>');
+      t.push('<text x="' + (o + 4.7 * s) + '" y="' + (o + 7.2 * s) + '" fill="rgba(243,239,228,.5)" font-family="JetBrains Mono" font-size="8.5" text-anchor="middle" letter-spacing="1.5">BALCON FILANT · 4,6 M²</text>');
+      PIECES.forEach(function (p) {
+        var x = o + p[1] * s, y = o + (6.8 - p[4]) * s, w = (p[2] - p[1]) * s, h = (p[4] - p[3]) * s, sej = p[0] === "Séjour";
+        t.push('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="' + (sej ? "rgba(214,255,74,.12)" : "rgba(243,239,228,.04)") + '" stroke="#f3efe4" stroke-width="2"/>');
+        if (h > 40) {
+          t.push('<text x="' + (x + w / 2) + '" y="' + (y + h / 2 - 2) + '" fill="#f3efe4" font-family="Manrope" font-weight="700" font-size="' + (w < 70 ? 9 : 11) + '" text-anchor="middle">' + p[0] + '</text>');
+          t.push('<text x="' + (x + w / 2) + '" y="' + (y + h / 2 + 12) + '" fill="rgba(243,239,228,.6)" font-family="JetBrains Mono" font-size="9" text-anchor="middle">' + p[5] + '</text>');
+        } else {
+          t.push('<text x="' + (x + w / 2) + '" y="' + (y + h / 2 + 3) + '" fill="rgba(243,239,228,.75)" font-family="JetBrains Mono" font-size="8.5" text-anchor="middle">' + p[0].toUpperCase() + ' · ' + p[5] + '</text>');
+        }
+      });
+      for (var k = 0; k < 4; k++) {   // fenêtres côté rue
+        var a = [0.55, 2.85, 5.55, 7.85][k];
+        t.push('<line x1="' + (o + a * s) + '" y1="' + (o + 6.8 * s) + '" x2="' + (o + (a + 1.2) * s) + '" y2="' + (o + 6.8 * s) + '" stroke="#d6ff4a" stroke-width="4"/>');
+      }
+      t.push('<g fill="none" stroke="#d6ff4a" stroke-width="1.8" stroke-linecap="round"><circle cx="' + (o + 2.3 * s) + '" cy="' + (o + 5.6 * s) + '" r="7"/><path d="M' + (o + 2.3 * s) + ' ' + (o + 5.6 * s - 10) + 'v20M' + (o + 2.3 * s - 10) + ' ' + (o + 5.6 * s) + 'h20"/></g>');
+      t.push("</svg>");
+      return t.join("");
+    }
+
+    // ---------------- images
+    function chemin(p, i) { return "media/" + p + "/" + p + "_" + ("00" + i).slice(-3) + ".jpg"; }
+    var intro = [], zoom = [];
+    function charge(src) { return new Promise(function (ok) { var im = new Image(); im.decoding = "async"; im.onload = function () { ok(im); }; im.onerror = function () { ok(null); }; im.src = src; }); }
+
+    // ---------------- cadrage : l'image couvre l'écran ; sur téléphone, l'immeuble reste entier et centré
+    var cadre = { s: 1, x: 0, y: 0 };
+    var bat = (function () {   // emprise de notre immeuble dans l'image (fractions)
+      var xs = [], ys = [];
+      Object.keys(E.etages).forEach(function (k) { E.etages[k].forEach(function (p) { xs.push(p[0]); ys.push(p[1]); }); });
+      if (!xs.length) return { x0: .3, x1: .65, y0: .1, y1: .9 };
+      return { x0: Math.min.apply(0, xs), x1: Math.max.apply(0, xs), y0: Math.min.apply(0, ys), y1: Math.max.apply(0, ys) };
+    })();
+    var centre = { s: 1, x: 0, y: 0 };
+    function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+    function calculeCadre() {
+      var vw = innerWidth, vh = innerHeight, cover = Math.max(vw / IW, vh / IH), portrait = vw / vh < 1, s, x, y;
+      var bx = (bat.x0 + bat.x1) / 2, by = (bat.y0 + bat.y1) / 2;
+      if (portrait) {   // téléphone : l'immeuble entier, centré, dans le haut de l'écran
+        s = Math.min(cover, 0.98 * vw / ((bat.x1 - bat.x0) * IW * 1.06));
+        x = clamp(vw / 2 - bx * IW * s, vw - IW * s, 0);
+        y = IH * s >= vh ? clamp(vh * 0.36 - by * IH * s, vh - IH * s, 0) : Math.max(0, (vh * 0.62 - IH * s) / 2);
+      } else {          // ordinateur : l'image couvre l'écran, l'immeuble un peu à droite (la colonne de texte est à gauche)
+        s = cover;
+        x = clamp(vw * 0.6 - bx * IW * s, vw - IW * s, 0);
+        y = (vh - IH * s) / 2;
+      }
+      cadre = { s: s, x: x, y: y };
+      centre = { s: cover, x: (vw - IW * cover) / 2, y: (vh - IH * cover) / 2 };
+      heros.style.width = IW * s + "px"; heros.style.height = IH * s + "px"; heros.style.transform = "translate(" + x + "px," + y + "px)";
+      interieur.style.width = IW * cover + "px"; interieur.style.height = IH * cover + "px";
+      interieur.style.transform = "translate(" + centre.x + "px," + centre.y + "px)";
+      svg.style.left = x + "px"; svg.style.top = y + "px"; svg.style.width = IW * s + "px"; svg.style.height = IH * s + "px";
+      var dpr = Math.min(devicePixelRatio || 1, 2);
+      film.width = Math.round(vw * dpr); film.height = Math.round(vh * dpr);
+      dessine(true);
+    }
+
+    // ---------------- film : une image (ou deux en fondu) au bon cadrage
+    var etat = { seq: "intro", f: 0 };
+    function dessine(force) {
+      var seq = etat.seq === "intro" ? intro : zoom;
+      if (!seq.length) return;
+      var dpr = film.width / innerWidth, i = Math.floor(etat.f), a = etat.f - i;
+      var im0 = seq[Math.min(i, seq.length - 1)], im1 = seq[Math.min(i + 1, seq.length - 1)];
+      if (!im0) return;
+      // pendant le zoom, le cadrage glisse de celui de la façade vers une image centrée (la fenêtre arrive au milieu)
+      var u = etat.seq === "zoom" ? etat.f / (N_ZOOM - 1) : 0, c = { s: cadre.s + (centre.s - cadre.s) * u, x: cadre.x + (centre.x - cadre.x) * u, y: cadre.y + (centre.y - cadre.y) * u };
+      var w = im0.naturalWidth, h = im0.naturalHeight, s = c.s * IW / w;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = "#0a1f18"; ctx.fillRect(0, 0, innerWidth, innerHeight);
+      ctx.globalAlpha = 1; ctx.drawImage(im0, c.x, c.y, w * s, h * s);
+      if (im1 && im1 !== im0 && a > 0.01) { ctx.globalAlpha = a; ctx.drawImage(im1, c.x, c.y, w * s, h * s); ctx.globalAlpha = 1; }
+    }
+
+    // ---------------- descente pilotée par le geste (molette, pavé tactile, doigt), avec élan
+    var p = 0, v = 0, dernierGeste = performance.now(), arrivee = false, enDescente = false;
+    function pousse(d) { if (!enDescente || arrivee) return; v += d; dernierGeste = performance.now(); }
+    addEventListener("wheel", function (e) {
+      if (!enDescente) return; e.preventDefault();
+      var dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1);
+      pousse(Math.max(-60, Math.min(60, dy)) * 0.00011);
+    }, { passive: false });
+    var ty = null;
+    addEventListener("touchstart", function (e) { if (enDescente) ty = e.touches[0].clientY; }, { passive: true });
+    addEventListener("touchmove", function (e) {
+      if (!enDescente || ty === null) return; e.preventDefault();
+      var y = e.touches[0].clientY; pousse((ty - y) * 0.00042); ty = y;
+    }, { passive: false });
+    addEventListener("touchend", function () { ty = null; }, { passive: true });
+    addEventListener("keydown", function (e) {
+      if (enDescente && (e.key === "ArrowDown" || e.key === " " || e.key === "PageDown")) pousse(0.012);
+      if (enDescente && (e.key === "ArrowUp" || e.key === "PageUp")) pousse(-0.012);
+      if (e.key === "Escape") fermePanneau();
+    });
+    document.getElementById("passer").addEventListener("click", function () { if (enDescente) { v = 0; finDescente(true); } });
+    function boucle(t) {
+      if (enDescente && !arrivee) {
+        if (performance.now() - dernierGeste > 3000 && Math.abs(v) < 0.0004) v += 0.00006;   // personne ne reste bloqué
+        p = Math.max(0, Math.min(1, p + v)); v *= 0.9;
+        etat.seq = "intro"; etat.f = p * (N_INTRO - 1); dessine();
+        if (p > 0.04) document.getElementById("accroche").style.opacity = Math.max(0, 1 - (p - 0.04) * 5);
+        else document.getElementById("accroche").style.opacity = 1;
+        if (p >= 1) finDescente(false);
+      }
+      requestAnimationFrame(boucle);
+    }
+
+    function finDescente(direct) {
+      arrivee = true; enDescente = false;
+      etat.seq = "intro"; etat.f = N_INTRO - 1; dessine();
+      setTimeout(function () {
+        body.classList.remove("descente");
+        var acc = document.getElementById("accroche");
+        acc.style.opacity = 0; setTimeout(function () { acc.style.visibility = "hidden"; }, 650);
+        heros.classList.add("on");
+        setTimeout(function () { body.classList.add("choix"); }, 350);
+      }, direct ? 50 : 450);
+    }
+
+    // ---------------- étages : contours, survol, choix
+    var survol = null, choisi = null, polys = {};
+    NIVEAUX.forEach(function (n) {
+      var pts = E.etages[n.id]; if (!pts) return;
+      var pl = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      pl.setAttribute("points", pts.map(function (q) { return q[0] + "," + q[1]; }).join(" "));
+      pl.dataset.id = n.id; svg.appendChild(pl); polys[n.id] = pl;
+      pl.addEventListener("mouseenter", function () { montre(n.id); });
+      pl.addEventListener("mousemove", place);
+      pl.addEventListener("mouseleave", function () { montre(null); });
+      pl.addEventListener("click", function () { ouvre(n.id); });
+      var b = document.createElement("button"); b.type = "button"; b.textContent = n.court; b.dataset.id = n.id;
+      b.addEventListener("mouseenter", function () { montre(n.id, true); });
+      b.addEventListener("mouseleave", function () { montre(null); });
+      b.addEventListener("click", function () { ouvre(n.id); });
+      document.getElementById("liste").appendChild(b);
+    });
+    var etiq = document.getElementById("etiquette");
+    function resume(n) {
+      var d = n.lots.filter(function (l) { return l.statut === "disponible"; }).length;
+      return n.lots.length + " lot" + (n.lots.length > 1 ? "s" : "") + " · " + (d ? d + " disponible" : n.lots[0].statut);
+    }
+    function montre(id, depuisListe) {
+      survol = id;
+      Object.keys(polys).forEach(function (k) { polys[k].classList.toggle("vu", k === id && k !== choisi); });
+      document.querySelectorAll("#liste button").forEach(function (b) { b.classList.toggle("vu", b.dataset.id === id); });
+      if (!id) { etiq.classList.remove("on"); return; }
+      var n = PAR_ID[id];
+      document.getElementById("etiqTitre").textContent = n.nom;
+      document.getElementById("etiqInfo").textContent = resume(n);
+      if (depuisListe || !matchMedia("(pointer: fine)").matches) {   // étiquette posée à droite de l'étage
+        var pts = E.etages[id], xm = Math.max.apply(0, pts.map(function (q) { return q[0]; })), ym = pts.reduce(function (s, q) { return s + q[1]; }, 0) / pts.length;
+        etiq.style.left = Math.min(innerWidth - 220, cadre.x + xm * IW * cadre.s + 14) + "px"; etiq.style.top = (cadre.y + ym * IH * cadre.s - 22) + "px";
+      }
+      etiq.classList.add("on");
+    }
+    function place(e) { etiq.style.left = Math.min(innerWidth - 230, e.clientX + 18) + "px"; etiq.style.top = (e.clientY - 26) + "px"; }
+
+    var panneau = document.getElementById("panneau");
+    function ouvre(id) {
+      var n = PAR_ID[id]; choisi = id;
+      Object.keys(polys).forEach(function (k) { polys[k].classList.toggle("choisi", k === id); polys[k].classList.remove("vu"); });
+      document.querySelectorAll("#liste button").forEach(function (b) { b.classList.toggle("choisi", b.dataset.id === id); });
+      etiq.classList.remove("on");
+      document.getElementById("pSur").textContent = "Résidence des Brasseurs";
+      document.getElementById("pTitre").textContent = n.nom;
+      var h = [];
+      n.lots.forEach(function (l) {
+        var dispo = l.statut === "disponible";
+        h.push('<div class="lot"><div class="haut"><span class="num">N° ' + l.n + '</span><span class="statut' + (dispo ? " dispo" : "") + '">' + l.statut + '</span></div>' +
+          '<p class="type">' + l.type + '</p><p class="info">' + l.info + '</p><p class="m2">' + l.m2 + '</p></div>');
+        if (id !== "rdc") h.push('<div class="plan">' + planSVG() + '<p>N° ' + l.n + ' · plan d\'illustration · la rue est en bas</p></div>');
+        h.push('<div class="prix"><span>Prix</span><b>Sur demande</b></div>');
+        if (l.visite) h.push('<button class="action accent" id="visiter" type="button">Visiter l\'appartement <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>');
+        else if (dispo) h.push('<button class="action" type="button" disabled>Visite 3D bientôt disponible</button>');
+        else h.push('<button class="action" type="button" disabled>Lot ' + l.statut + '</button>');
+      });
+      document.getElementById("pCorps").innerHTML = h.join("");
+      var vb = document.getElementById("visiter"); if (vb) vb.addEventListener("click", entre);
+      panneau.classList.add("ouvert");
+    }
+    function fermePanneau() {
+      panneau.classList.remove("ouvert"); choisi = null;
+      Object.keys(polys).forEach(function (k) { polys[k].classList.remove("choisi"); });
+      document.querySelectorAll("#liste button").forEach(function (b) { b.classList.remove("choisi"); });
+    }
+    document.getElementById("fermer").addEventListener("click", fermePanneau);
+
+    // ---------------- zoom jusqu'à la fenêtre du séjour, puis l'intérieur
+    function anime(de, a, duree, chaque) {
+      return new Promise(function (ok) {
+        var t0 = performance.now();
+        (function pas(t) {
+          var u = Math.min(1, (t - t0) / duree), e = u < .5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+          chaque(de + (a - de) * e);
+          if (u < 1) requestAnimationFrame(pas); else ok();
+        })(t0);
+      });
+    }
+    var occupe = false;
+    function entre() {
+      if (occupe || !zoom.length) return; occupe = true;
+      fermePanneau(); body.classList.remove("choix"); montre(null);
+      etat.seq = "zoom"; etat.f = 0; dessine();
+      heros.classList.remove("on");
+      setTimeout(function () {
+        anime(0, N_ZOOM - 1, 2600, function (f) { etat.f = f; dessine(); }).then(function () {
+          interieur.style.transition = "opacity .9s, transform 6s cubic-bezier(.2,.6,.2,1)";
+          interieur.style.transform = "translate(" + centre.x + "px," + centre.y + "px) scale(1.06)";
+          interieur.classList.add("on");
+          requestAnimationFrame(function () { requestAnimationFrame(function () {
+            interieur.style.transform = "translate(" + centre.x + "px," + centre.y + "px) scale(1)";
+          }); });
+          setTimeout(function () { body.classList.add("dedans"); occupe = false; }, 700);
+        });
+      }, 450);
+    }
+    document.getElementById("retour").addEventListener("click", function () {
+      if (occupe) return; occupe = true;
+      body.classList.remove("dedans"); interieur.classList.remove("on");
+      setTimeout(function () {
+        anime(N_ZOOM - 1, 0, 1900, function (f) { etat.f = f; dessine(); }).then(function () {
+          heros.classList.add("on");
+          setTimeout(function () { body.classList.add("choix"); occupe = false; }, 400);
+        });
+      }, 500);
+    });
+
+    // ---------------- chargement : le trajet du logo avance avec les images
+    var logo = document.getElementById("logoCh"), trajet = document.getElementById("trajetCh");
+    requestAnimationFrame(function () { logo.classList.add("leve"); });
+    var faits = 0, total = N_INTRO + 1;
+    function avance() { faits++; trajet.style.strokeDashoffset = 700 * (1 - faits / total); }
+    var promesses = [];
+    for (var i = 0; i < N_INTRO; i++) (function (i) { promesses.push(charge(chemin("intro", i)).then(function (im) { intro[i] = im; avance(); })); })(i);
+    promesses.push(charge("media/heros.jpg").then(function (im) { if (im) heros.src = im.src; avance(); }));
+    Promise.all(promesses).then(function () {
+      intro = intro.filter(Boolean);
+      logo.classList.add("pret");
+      document.getElementById("chEtat").textContent = "Prêt";
+      calculeCadre();
+      setTimeout(function () {
+        var ch = document.getElementById("chargement"); ch.classList.add("fini"); setTimeout(function () { ch.remove(); }, 1000);
+        body.classList.add("pret"); enDescente = true; dernierGeste = performance.now();
+        if (!matchMedia("(pointer: fine)").matches) {
+          document.getElementById("gesteTexte").textContent = "Glissez pour descendre";
+          document.getElementById("choixTexte").textContent = "Touchez un étage de la façade, ou choisissez-le ci-dessous.";
+        }
+      }, 700);
+      // le reste se charge pendant la descente
+      var z = [];
+      for (var k = 0; k < N_ZOOM; k++) (function (k) { z.push(charge(chemin("zoom", k)).then(function (im) { zoom[k] = im; })); })(k);
+      z.push(charge("media/interieur.jpg").then(function (im) { if (im) interieur.src = im.src; }));
+      Promise.all(z).then(function () { zoom = zoom.filter(Boolean); });
+    });
+    addEventListener("resize", calculeCadre);
+    calculeCadre();
+    requestAnimationFrame(boucle);
+  })();
+  </script>
+</body>
+</html>

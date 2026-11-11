@@ -1,0 +1,62 @@
+[
+ {
+  "model": "potted_plant_01",
+  "pos": [
+   0.42,
+   6.6,
+   -0.32
+  ],
+  "rot": 0.6981,
+  "scale": 1.35
+ },
+ {
+  "model": "potted_plant_01",
+  "pos": [
+   4.3,
+   6.6,
+   -4.5
+  ],
+  "rot": 0.1745,
+  "scale": 1.15
+ },
+ {
+  "model": "potted_plant_04",
+  "pos": [
+   0.3,
+   7.54,
+   -5.3
+  ],
+  "rot": 0.0,
+  "scale": 0.6
+ },
+ {
+  "model": "potted_plant_04",
+  "pos": [
+   6.2,
+   7.48,
+   -5.42
+  ],
+  "rot": 0.0,
+  "scale": 0.6
+ },
+ {
+  "model": "potted_plant_04",
+  "pos": [
+   6.7,
+   7.37,
+   -5.55
+  ],
+  "rot": 0.0,
+  "scale": 0.6
+ },
+ {
+  "model": "potted_plant_01",
+  "pos": [
+   6.8,
+   6.6,
+   -6.45
+  ],
+  "rot": 1.0472,
+  "scale": 0.95
+ }
+]
