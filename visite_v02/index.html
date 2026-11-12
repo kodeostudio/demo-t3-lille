@@ -140,9 +140,6 @@
     .id { padding: 8px 12px; }
     .id h1 { font-size: 0.95rem; }
     body:has(#nav:not([hidden])) .id { display: none; }
-    .actions { display: none; }
-    .actions.tel-contact { display: flex; top: auto; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
-    .actions.tel-contact .row { display: none; }
     .room {
       top: calc(12px + env(safe-area-inset-top, 0px)); bottom: auto; left: calc(12px + env(safe-area-inset-left, 0px)); right: auto;
       padding: 6px 10px; font-size: 0.76rem; gap: 8px;
@@ -152,20 +149,27 @@
     .enter { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
     .enter p { display: none; }
     .menu-btn {
-      position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(14px + env(safe-area-inset-bottom, 0px));
-      align-items: center; gap: 8px; padding: 10px 18px; border-radius: 999px; cursor: pointer; font-weight: 600;
-      background: var(--paper-solid); border: 1px solid var(--line); box-shadow: 0 6px 24px rgba(10, 31, 24, 0.35);
+      position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+      align-items: center; gap: 5px; padding: 5px 11px; border-radius: 999px; cursor: pointer;
+      font: 600 0.7rem var(--f-body); background: rgba(14, 59, 46, 0.78); border: 1px solid var(--line);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     }
-    .menu-btn i { font-style: normal; color: var(--citron); font-size: 1.05rem; line-height: 1; }
+    .menu-btn i { font-style: normal; color: var(--citron); font-size: 0.85rem; line-height: 1; }
     body:has(#nav:not([hidden])) .menu-btn { display: flex; }
     .tel { display: inline-block; }
     .nav, .nav:not([hidden]) {
-      display: none; left: calc(12px + env(safe-area-inset-left, 0px)); right: calc(12px + env(safe-area-inset-right, 0px));
-      bottom: calc(66px + env(safe-area-inset-bottom, 0px)); max-width: none; max-height: calc(100% - 140px); overflow-y: auto;
-      background: var(--paper-solid);
+      display: none; left: 50%; right: auto; transform: translateX(-50%); width: max-content; max-width: calc(100% - 24px);
+      bottom: calc(42px + env(safe-area-inset-bottom, 0px)); max-height: 46vh; overflow-y: auto;
+      padding: 6px; gap: 4px; border-radius: 12px; background: rgba(14, 59, 46, 0.9);
     }
     body.menu-ouvert .nav:not([hidden]) { display: flex; }
-    .nav .pill { padding: 9px 13px; }
+    .nav .row { flex-direction: column; flex-wrap: nowrap; gap: 2px; }
+    .nav .row + .row { border-top: 1px solid var(--line); padding-top: 4px; }
+    .nav .pill { border: 0; border-radius: 8px; padding: 6px 12px; font-size: 0.74rem; text-align: left; }
+  }
+  .signature { position: fixed; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); pointer-events: none; }
+  @media (max-width: 640px), (pointer: coarse) and (max-height: 520px) {
+    .credit.signature { display: block; top: calc(14px + env(safe-area-inset-top, 0px)); bottom: auto; right: calc(12px + env(safe-area-inset-right, 0px)); font-size: 0.56rem; opacity: 0.7; }
   }
   @media (prefers-reduced-motion: reduce) { .veil, .loader, .bar span, .pill { transition: none; } }
 </style>
@@ -199,24 +203,13 @@
     <button type="button" class="pill" id="go-eclate" aria-pressed="false">Vue éclatée</button>
     <button type="button" class="pill" id="go-guide" aria-pressed="false">Visite guidée</button>
     <button type="button" class="pill" id="go-rue" aria-pressed="false">Façade</button>
-    <button type="button" class="pill tel" id="tel-contact">Contacter</button>
   </div>
   <p class="hint" id="hint">Cliquez au sol pour avancer · glissez pour regarder · Z Q S D ou flèches pour marcher</p>
 </nav>
 
-<button type="button" class="menu-btn" id="menu-btn" aria-expanded="false" aria-controls="nav"><i aria-hidden="true">⊕</i><span>Menu</span></button>
+<button type="button" class="menu-btn" id="menu-btn" aria-expanded="false" aria-controls="nav"><i aria-hidden="true">⊕</i><span>Pièces</span></button>
 
-<div class="actions">
-  <div class="contact card" id="contact-box" hidden>
-    <strong>Contact de l'agence</strong>
-    Sur la visite d'un client, ce bouton mène à l'agence ou au promoteur qui vend le bien : nom, téléphone et lien de l'annonce.
-  </div>
-  <div class="row">
-    <button type="button" class="ghost" id="fullscreen">Plein écran</button>
-    <button type="button" class="solid" id="contact">Contacter</button>
-  </div>
-  <p class="credit">Visite 3D · KODEO ⊕</p>
-</div>
+<p class="credit signature">Visite 3D · KODEO ⊕</p>
 
 <div class="veil" id="veil"></div>
 <div class="loader" id="loader">
@@ -636,33 +629,16 @@ ui.eclate.addEventListener("click", () => {
 });
 ui.guide.addEventListener("click", () => { if (state.tour) stopTour(); else fadeThen(startTour); });
 document.getElementById("go-rue").addEventListener("click", () => fadeThen(goStreet));
-document.getElementById("fullscreen").addEventListener("click", () => {
-  if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
-  else document.documentElement.requestFullscreen?.().catch(() => {});
-});
-document.getElementById("contact").addEventListener("click", () => {
-  const box = document.getElementById("contact-box");
-  box.hidden = !box.hidden;
-});
-
 // menu du téléphone : s'ouvre avec le bouton, se ferme dès qu'on choisit ou qu'on touche la scène
 const menuBtn = document.getElementById("menu-btn");
 function setMenu(open) {
   document.body.classList.toggle("menu-ouvert", open);
   menuBtn.setAttribute("aria-expanded", String(open));
-  menuBtn.querySelector("span").textContent = open ? "Fermer" : "Menu";
+  menuBtn.querySelector("span").textContent = open ? "Fermer" : "Pièces";
 }
 menuBtn.addEventListener("click", () => setMenu(!document.body.classList.contains("menu-ouvert")));
 ui.nav.addEventListener("click", (e) => { if (e.target.closest("button")) setMenu(false); });
-document.getElementById("tel-contact").addEventListener("click", () => {
-  const box = document.getElementById("contact-box");
-  box.hidden = false;
-  box.parentElement.classList.add("tel-contact");
-});
-canvas.addEventListener("pointerdown", () => {
-  setMenu(false);
-  document.querySelector(".actions").classList.remove("tel-contact");
-});
+canvas.addEventListener("pointerdown", () => setMenu(false));
 
 // ------------------------------------------------------------ souris, doigt, clavier
 const ray = new THREE.Raycaster();
