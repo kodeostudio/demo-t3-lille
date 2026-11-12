@@ -133,6 +133,40 @@
     .actions .credit { display: none; }
     .enter { bottom: calc(68px + env(safe-area-inset-bottom, 0px)); }
   }
+  /* téléphone : un seul bouton « Menu », le panneau se ferme dès qu'on choisit (demande de Baptiste, 2026-11-12) */
+  .menu-btn, .tel { display: none; }
+  @media (max-width: 640px), (pointer: coarse) and (max-height: 520px) {
+    .facts, .hint, .eyebrow, .credit { display: none; }
+    .id { padding: 8px 12px; }
+    .id h1 { font-size: 0.95rem; }
+    body:has(#nav:not([hidden])) .id { display: none; }
+    .actions { display: none; }
+    .actions.tel-contact { display: flex; top: auto; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
+    .actions.tel-contact .row { display: none; }
+    .room {
+      top: calc(12px + env(safe-area-inset-top, 0px)); bottom: auto; left: calc(12px + env(safe-area-inset-left, 0px)); right: auto;
+      padding: 6px 10px; font-size: 0.76rem; gap: 8px;
+    }
+    .room span { font-size: 0.72rem; }
+    body:has(#enter:not([hidden])) .room { display: none; }
+    .enter { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+    .enter p { display: none; }
+    .menu-btn {
+      position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+      align-items: center; gap: 8px; padding: 10px 18px; border-radius: 999px; cursor: pointer; font-weight: 600;
+      background: var(--paper-solid); border: 1px solid var(--line); box-shadow: 0 6px 24px rgba(10, 31, 24, 0.35);
+    }
+    .menu-btn i { font-style: normal; color: var(--citron); font-size: 1.05rem; line-height: 1; }
+    body:has(#nav:not([hidden])) .menu-btn { display: flex; }
+    .tel { display: inline-block; }
+    .nav, .nav:not([hidden]) {
+      display: none; left: calc(12px + env(safe-area-inset-left, 0px)); right: calc(12px + env(safe-area-inset-right, 0px));
+      bottom: calc(66px + env(safe-area-inset-bottom, 0px)); max-width: none; max-height: calc(100% - 140px); overflow-y: auto;
+      background: var(--paper-solid);
+    }
+    body.menu-ouvert .nav:not([hidden]) { display: flex; }
+    .nav .pill { padding: 9px 13px; }
+  }
   @media (prefers-reduced-motion: reduce) { .veil, .loader, .bar span, .pill { transition: none; } }
 </style>
 
@@ -165,9 +199,12 @@
     <button type="button" class="pill" id="go-eclate" aria-pressed="false">Vue éclatée</button>
     <button type="button" class="pill" id="go-guide" aria-pressed="false">Visite guidée</button>
     <button type="button" class="pill" id="go-rue" aria-pressed="false">Façade</button>
+    <button type="button" class="pill tel" id="tel-contact">Contacter</button>
   </div>
   <p class="hint" id="hint">Cliquez au sol pour avancer · glissez pour regarder · Z Q S D ou flèches pour marcher</p>
 </nav>
+
+<button type="button" class="menu-btn" id="menu-btn" aria-expanded="false" aria-controls="nav"><i aria-hidden="true">⊕</i><span>Menu</span></button>
 
 <div class="actions">
   <div class="contact card" id="contact-box" hidden>
@@ -606,6 +643,25 @@ document.getElementById("fullscreen").addEventListener("click", () => {
 document.getElementById("contact").addEventListener("click", () => {
   const box = document.getElementById("contact-box");
   box.hidden = !box.hidden;
+});
+
+// menu du téléphone : s'ouvre avec le bouton, se ferme dès qu'on choisit ou qu'on touche la scène
+const menuBtn = document.getElementById("menu-btn");
+function setMenu(open) {
+  document.body.classList.toggle("menu-ouvert", open);
+  menuBtn.setAttribute("aria-expanded", String(open));
+  menuBtn.querySelector("span").textContent = open ? "Fermer" : "Menu";
+}
+menuBtn.addEventListener("click", () => setMenu(!document.body.classList.contains("menu-ouvert")));
+ui.nav.addEventListener("click", (e) => { if (e.target.closest("button")) setMenu(false); });
+document.getElementById("tel-contact").addEventListener("click", () => {
+  const box = document.getElementById("contact-box");
+  box.hidden = false;
+  box.parentElement.classList.add("tel-contact");
+});
+canvas.addEventListener("pointerdown", () => {
+  setMenu(false);
+  document.querySelector(".actions").classList.remove("tel-contact");
 });
 
 // ------------------------------------------------------------ souris, doigt, clavier
