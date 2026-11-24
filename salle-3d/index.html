@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}[hidden]{display:none!important}</style>
+<title>La Salle des Tilleuls · KODEO Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Manrope:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: plein écran, la maquette 3D occupe tout, deux cartouches flottants (titre en haut, configurations en bas) */
+:root {
+  /* charte KODEO : sapin, citron (un seul accent), crème, nuit */
+  --bg: #0a1f18;
+  --panel: rgba(14, 59, 46, 0.86);
+  --line: rgba(243, 239, 228, 0.18);
+  --fg: #f3efe4;
+  --muted: rgba(243, 239, 228, 0.66);
+  --gold: #d6ff4a;
+  --display: "Unbounded", "Manrope", sans-serif;
+  --ui: "Manrope", "Avenir Next", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--ui);
+  overflow: hidden; position: relative;
+}
+#scene { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; }
+.overlay {
+  position: absolute; inset: 0; pointer-events: none;
+  display: flex; flex-direction: column; justify-content: space-between; gap: 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px;
+}
+.card {
+  pointer-events: auto; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 14px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  padding: 14px 18px; max-width: 380px;
+}
+.eyebrow { font: 500 10.5px var(--mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); margin: 0 0 4px; }
+h1 { font-family: var(--display); font-weight: 600; font-size: clamp(22px, 3.4vw, 30px); line-height: 1.12; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+h1 em { color: var(--gold); font-style: normal; }
+.hint { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+.bottom { display: flex; flex-direction: column; gap: 10px; max-width: 560px; }
+.seg { display: flex; gap: 4px; padding: 4px; border-radius: 999px; }
+.seg button {
+  flex: 1; min-width: 0; font: 600 14px var(--ui); color: var(--muted); background: transparent;
+  border: 1px solid transparent; border-radius: 999px; padding: 10px 8px; cursor: pointer; letter-spacing: 0.02em;
+}
+.seg button:hover { color: var(--fg); }
+.seg button[aria-pressed="true"] { color: #0a1f18; background: var(--gold); }
+.seg button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.spec { min-width: 0; }
+.spec h2 { font-family: var(--ui); font-weight: 600; font-size: 19px; letter-spacing: -0.01em; margin: 0 0 4px; }
+.spec p { margin: 0; font-size: 14px; line-height: 1.5; font-weight: 500; color: var(--fg); font-variant-numeric: tabular-nums; }
+.note { font-size: 12px !important; color: var(--muted) !important; margin-top: 8px !important; }
+.signature { position: absolute; right: max(16px, env(safe-area-inset-right, 0px)); bottom: 16px; margin: 0; pointer-events: none;
+  font: 500 10.5px var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg); opacity: 0.8;
+  text-shadow: 0 1px 8px rgba(10, 31, 24, 0.8); }
+.signature b { color: var(--gold); font-weight: 500; }
+@media (max-width: 720px) { .signature { top: 18px; bottom: auto; } }
+@media (max-width: 480px) {
+  .card { max-width: none; padding: 12px 14px; }
+  .bottom { max-width: none; }
+  .hint { display: none; }
+}
+</style>
+</head><body>
+
+<canvas id="scene" aria-label="Maquette 3D d'une salle de réception"></canvas>
+<div class="overlay">
+  <div class="card">
+    <p class="eyebrow">Plan 3D · exemple</p>
+    <h1>La Salle <em>des Tilleuls</em></h1>
+    <p class="hint">Glissez pour tourner autour de la salle · molette ou pincement pour zoomer</p>
+  </div>
+  <div class="bottom">
+    <div class="card seg" role="group" aria-label="Configuration de la salle">
+      <button id="btn-mariage" data-cfg="mariage" aria-pressed="true">Mariage</button>
+      <button id="btn-seminaire" data-cfg="seminaire" aria-pressed="false">Séminaire</button>
+      <button id="btn-cocktail" data-cfg="cocktail" aria-pressed="false">Cocktail</button>
+    </div>
+    <div class="card spec" aria-live="polite">
+      <h2 id="spec-title">Dîner de mariage</h2>
+      <p id="spec-text">100 couverts · 10 tables rondes Ø 180 cm · table d'honneur · piste de danse 5 × 5 m</p>
+      <p class="note">Lieu fictif. Votre salle est modélisée à partir de vos plans et de quelques photos.</p>
+    </div>
+  </div>
+</div>
+<p class="signature">KODEO <b>⊕</b></p>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function () {
+  const L = 24, W = 14, H = 7;           // salle de 24 × 14 m, 7 m sous plafond
+  const hx = L / 2, hz = W / 2;
+  const canvas = document.getElementById('scene');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a1f18);
+
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
+  camera.position.set(15, 9, 15);
+  const controls = new THREE.OrbitControls(camera, canvas);
+  controls.target.set(-1, 1, 0);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.maxPolarAngle = Math.PI * 0.47;
+  controls.minDistance = 6;
+  controls.maxDistance = 40;
+  controls.enablePan = false;
+
+  /* ---------- textures procédurales ---------- */
+  function canvasTex(w, h, draw, rx, ry) {
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    draw(c.getContext('2d'), w, h);
+    const t = new THREE.CanvasTexture(c);
+    t.encoding = THREE.sRGBEncoding;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(rx || 1, ry || 1);
+    t.anisotropy = 4;
+    return t;
+  }
+  function rnd(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+
+  const floorTex = canvasTex(512, 512, (g, w, h) => {
+    const r = rnd(7), ph = 32;
+    for (let y = 0; y < h; y += ph) {
+      let x = -r() * 200;
+      while (x < w) {
+        const len = 160 + r() * 180, k = 0.85 + r() * 0.3;
+        g.fillStyle = `rgb(${Math.round(132 * k)},${Math.round(96 * k)},${Math.round(64 * k)})`;
+        g.fillRect(x, y, len, ph);
+        g.globalAlpha = 0.12;
+        for (let i = 0; i < 6; i++) { g.fillStyle = r() > 0.5 ? '#3a2616' : '#c9a07a'; g.fillRect(x, y + r() * ph, len, 1); }
+        g.globalAlpha = 1;
+        g.fillStyle = '#2a1c10'; g.fillRect(x, y, 2, ph);
+        x += len;
+      }
+      g.fillStyle = '#2a1c10'; g.fillRect(0, y, w, 2);
+    }
+  }, 5, 3);
+
+  const stoneTex = canvasTex(512, 256, (g, w, h) => {
+    g.fillStyle = '#b9ab97'; g.fillRect(0, 0, w, h);
+    const r = rnd(11), rh = 42;
+    for (let y = 0, row = 0; y < h; y += rh, row++) {
+      let x = row % 2 ? -60 : 0;
+      while (x < w) {
+        const bw = 90 + r() * 60, k = 0.9 + r() * 0.16;
+        g.fillStyle = `rgb(${Math.round(222 * k)},${Math.round(210 * k)},${Math.round(190 * k)})`;
+        g.fillRect(x + 2, y + 2, bw - 4, rh - 4);
+        x += bw;
+      }
+    }
+  }, 6, 4);
+
+  const screenTex = canvasTex(1024, 512, (g, w, h) => {
+    const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#1d2b3a'); gr.addColorStop(1, '#0e1620');
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#d6b77a'; g.fillRect(80, 170, 70, 4);
+    g.fillStyle = '#f3ece2'; g.font = '500 64px Georgia, serif'; g.fillText('Séminaire annuel', 80, 260);
+    g.fillStyle = '#9fb3c6'; g.font = '36px Arial, sans-serif'; g.fillText('Stratégie & perspectives 2027', 80, 320);
+  });
+
+  /* ---------- matériaux ---------- */
+  const M = {
+    floor: new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.55, metalness: 0.05 }),
+    stone: new THREE.MeshStandardMaterial({ map: stoneTex, roughness: 0.95 }),
+    beam: new THREE.MeshStandardMaterial({ color: 0x3b2a1c, roughness: 0.8 }),
+    ceil: new THREE.MeshStandardMaterial({ color: 0x5a4330, roughness: 0.9 }),
+    frame: new THREE.MeshStandardMaterial({ color: 0x2b2420, roughness: 0.6 }),
+    glass: new THREE.MeshBasicMaterial({ color: 0x8fa9c4 }),
+    cloth: new THREE.MeshStandardMaterial({ color: 0xf5f1ea, roughness: 0.92 }),
+    gold: new THREE.MeshStandardMaterial({ color: 0xc8a463, roughness: 0.35, metalness: 0.75 }),
+    flowerW: new THREE.MeshStandardMaterial({ color: 0xf6eee8, roughness: 0.8 }),
+    flowerP: new THREE.MeshStandardMaterial({ color: 0xe6b9b3, roughness: 0.8 }),
+    leaf: new THREE.MeshStandardMaterial({ color: 0x5f7b52, roughness: 0.8 }),
+    flame: new THREE.MeshBasicMaterial({ color: 0xffd28a }),
+    bulb: new THREE.MeshBasicMaterial({ color: 0xffe2a8 }),
+    dance: new THREE.MeshStandardMaterial({ color: 0xece6dc, roughness: 0.15, metalness: 0.1 }),
+    stage: new THREE.MeshStandardMaterial({ color: 0x23201e, roughness: 0.6 }),
+    screen: new THREE.MeshBasicMaterial({ map: screenTex }),
+    chairBlack: new THREE.MeshStandardMaterial({ color: 0x2a2826, roughness: 0.6 }),
+    velvet: new THREE.MeshStandardMaterial({ color: 0x5b6b56, roughness: 0.95 }),
+    pot: new THREE.MeshStandardMaterial({ color: 0xd9d1c4, roughness: 0.7 }),
+    barTop: new THREE.MeshStandardMaterial({ color: 0x2e2a26, roughness: 0.3, metalness: 0.2 })
+  };
+
+  function box(w, h, d, mat, x, y, z, parent) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
+    (parent || scene).add(m); return m;
+  }
+  function cyl(rt, rb, h, mat, x, y, z, parent, seg) {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg || 32), mat);
+    m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
+    (parent || scene).add(m); return m;
+  }
+
+  /* ---------- architecture ---------- */
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(L, W), M.floor);
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+
+  function wall(w, x, z, ry) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, H), M.stone);
+    m.position.set(x, H / 2, z); m.rotation.y = ry; m.receiveShadow = true; scene.add(m);
+  }
+  wall(L, 0, -hz, 0);              // fond
+  wall(L, 0, hz, Math.PI);         // avant (invisible de l'extérieur)
+  wall(W, -hx, 0, Math.PI / 2);    // gauche
+  wall(W, hx, 0, -Math.PI / 2);    // droite (invisible de l'extérieur)
+
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(L, W), M.ceil);
+  ceil.rotation.x = Math.PI / 2; ceil.position.y = H; scene.add(ceil);
+  for (let x = -hx + 1.2; x < hx; x += 2.4) {
+    const b = box(0.32, 0.42, W, M.beam, x, H - 0.21, 0); b.castShadow = false;
+  }
+  // plinthe bois
+  box(L, 0.9, 0.06, M.beam, 0, 0.45, -hz + 0.03).castShadow = false;
+  box(0.06, 0.9, W, M.beam, -hx + 0.03, 0.45, 0).castShadow = false;
+
+  function archShape(r, hRect) {
+    const s = new THREE.Shape();
+    s.moveTo(-r, 0); s.lineTo(r, 0); s.lineTo(r, hRect);
+    s.absarc(0, hRect, r, 0, Math.PI, false); s.lineTo(-r, 0);
+    return s;
+  }
+  function windowAt(x, z, ry) {
+    const g = new THREE.Group();
+    const fr = new THREE.Mesh(new THREE.ShapeGeometry(archShape(0.95, 2.6), 24), M.frame);
+    const gl = new THREE.Mesh(new THREE.ShapeGeometry(archShape(0.82, 2.6), 24), M.glass);
+    gl.position.z = 0.01;
+    g.add(fr, gl);
+    // meneaux
+    const mv = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 3.4), M.frame); mv.position.set(0, 1.7, 0.02); g.add(mv);
+    const mh = new THREE.Mesh(new THREE.PlaneGeometry(1.64, 0.06), M.frame); mh.position.set(0, 1.6, 0.02); g.add(mh);
+    g.position.set(x, 1.3, z); g.rotation.y = ry; scene.add(g);
+  }
+  [-9, -4.5, 0, 4.5, 9].forEach(x => windowAt(x, -hz + 0.02, 0));
+  [-4.2, 4.2].forEach(z => windowAt(-hx + 0.02, z, Math.PI / 2));
+
+  /* ---------- lumières ---------- */
+  scene.add(new THREE.HemisphereLight(0xfff1dc, 0x3a2a1c, 0.55));
+  const sun = new THREE.DirectionalLight(0xffd9a8, 0.85);
+  sun.position.set(-8, 14, -10); sun.target.position.set(2, 0, 3);
+  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+  const sc = sun.shadow.camera; sc.left = -16; sc.right = 16; sc.top = 12; sc.bottom = -12; sc.far = 50;
+  sun.shadow.bias = -0.0005; sun.shadow.radius = 4;
+  scene.add(sun, sun.target);
+
+  // lustres
+  [-6, 0, 6].forEach(x => {
+    const g = new THREE.Group(); g.position.set(x, 5.4, 0); scene.add(g);
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.2, 8), M.gold); rod.position.y = 0.6; g.add(rod);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.75, 0.035, 8, 48), M.gold); ring.rotation.x = Math.PI / 2; g.add(ring);
+    for (let i = 0; i < 10; i++) {
+      const a = i / 10 * Math.PI * 2;
+      const b = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), M.bulb);
+      b.position.set(Math.cos(a) * 0.75, 0.1, Math.sin(a) * 0.75); g.add(b);
+    }
+    const pl = new THREE.PointLight(0xffc982, 0.9, 13, 2); pl.position.y = -0.2; g.add(pl);
+  });
+
+  // guirlandes lumineuses
+  const bulbGeo = new THREE.SphereGeometry(0.035, 8, 6);
+  for (let x = -hx + 2.4; x < hx - 1; x += 4.8) {
+    const pts = [];
+    for (let i = 0; i <= 40; i++) {
+      const t = i / 40, z = -hz + t * W;
+      const y = 6.55 - Math.sin(t * Math.PI) * 0.9;
+      pts.push(new THREE.Vector3(x, y, z));
+      if (i % 2 === 0 && i > 0 && i < 40) { const b = new THREE.Mesh(bulbGeo, M.bulb); b.position.set(x, y - 0.05, z); scene.add(b); }
+    }
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x2b241d })));
+  }
+
+  /* ---------- mobilier ---------- */
+  const G = {
+    seat: new THREE.BoxGeometry(0.42, 0.05, 0.42),
+    back: new THREE.BoxGeometry(0.42, 0.48, 0.04),
+    leg: new THREE.CylinderGeometry(0.015, 0.015, 0.45, 6),
+    cushion: new THREE.BoxGeometry(0.4, 0.04, 0.4)
+  };
+  // chaise : regarde vers -z localement, dossier en +z
+  function chair(x, z, rotY, mat, parent) {
+    const c = new THREE.Group(); c.position.set(x, 0, z); c.rotation.y = rotY;
+    const s = new THREE.Mesh(G.seat, mat); s.position.y = 0.45; c.add(s);
+    const cu = new THREE.Mesh(G.cushion, M.cloth); cu.position.y = 0.49; c.add(cu);
+    const b = new THREE.Mesh(G.back, mat); b.position.set(0, 0.71, 0.19); c.add(b);
+    [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]].forEach(p => {
+      const l = new THREE.Mesh(G.leg, mat); l.position.set(p[0], 0.225, p[1]); c.add(l);
+    });
+    c.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    parent.add(c);
+  }
+  function faceAngle(dx, dz) { return Math.atan2(-dx, -dz); }   // oriente -z local vers (dx, dz)
+
+  function centerpiece(x, z, parent) {
+    cyl(0.06, 0.05, 0.22, M.gold, x, 0.87, z, parent, 16);
+    const r = rnd(Math.round((x + 20) * 100 + z * 10));
+    for (let i = 0; i < 9; i++) {
+      const a = r() * Math.PI * 2, d = r() * 0.12;
+      const f = new THREE.Mesh(new THREE.SphereGeometry(0.055 + r() * 0.03, 10, 8), r() > 0.45 ? M.flowerW : M.flowerP);
+      f.position.set(x + Math.cos(a) * d, 1.02 + r() * 0.08, z + Math.sin(a) * d); f.castShadow = true; parent.add(f);
+    }
+    for (let i = 0; i < 5; i++) {
+      const a = r() * Math.PI * 2;
+      const l = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), M.leaf);
+      l.scale.set(1.6, 0.6, 1); l.position.set(x + Math.cos(a) * 0.14, 0.98, z + Math.sin(a) * 0.14); parent.add(l);
+    }
+    for (let i = 0; i < 3; i++) {
+      const a = i / 3 * Math.PI * 2 + 0.5;
+      cyl(0.02, 0.02, 0.1, M.cloth, x + Math.cos(a) * 0.32, 0.81, z + Math.sin(a) * 0.32, parent, 8);
+      const fl = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 6), M.flame);
+      fl.position.set(x + Math.cos(a) * 0.32, 0.88, z + Math.sin(a) * 0.32); parent.add(fl);
+    }
+  }
+  function roundTable(x, z, seats, parent) {
+    cyl(0.92, 0.98, 0.74, M.cloth, x, 0.37, z, parent, 40);
+    cyl(0.92, 0.92, 0.02, M.cloth, x, 0.75, z, parent, 40);
+    centerpiece(x, z, parent);
+    for (let i = 0; i < seats; i++) {
+      const a = i / seats * Math.PI * 2;
+      const cx = x + Math.cos(a) * 1.3, cz = z + Math.sin(a) * 1.3;
+      chair(cx, cz, faceAngle(x - cx, z - cz), M.gold, parent);
+    }
+  }
+  function plant(x, z, parent, s) {
+    s = s || 1;
+    cyl(0.28 * s, 0.22 * s, 0.5 * s, M.pot, x, 0.25 * s, z, parent, 20);
+    const r = rnd(Math.round(x * 31 + z * 17 + 500));
+    for (let i = 0; i < 7; i++) {
+      const l = new THREE.Mesh(new THREE.SphereGeometry(0.28 * s, 10, 8), M.leaf);
+      l.position.set(x + (r() - 0.5) * 0.4 * s, (0.75 + r() * 0.7) * s, z + (r() - 0.5) * 0.4 * s); l.castShadow = true; parent.add(l);
+    }
+  }
+
+  const configs = {
+    mariage: {
+      title: 'Dîner de mariage',
+      text: "100 couverts · 10 tables rondes Ø 180 cm · table d'honneur · piste de danse 5 × 5 m",
+      build(g) {
+        // piste de danse
+        const df = box(5, 0.04, 5, M.dance, -6.6, 0.02, 0, g);
+        // table d'honneur
+        box(0.9, 0.74, 5.4, M.cloth, -10.4, 0.37, 0, g);
+        for (let i = 0; i < 4; i++) centerpiece(-10.4, -1.8 + i * 1.2, g);
+        for (let i = 0; i < 8; i++) chair(-11.2, -2.45 + i * 0.7, faceAngle(1, 0), M.gold, g);
+        // tables rondes
+        const xs = [-2.4, 1.8, 6.0, 10.0], zs = [-4.3, 0, 4.3];
+        xs.forEach(x => zs.forEach(z => {
+          if (x === 10.0 && z !== 0) return;
+          roundTable(x, z, 10, g);
+        }));
+        plant(-11.3, -6.3, g); plant(-11.3, 6.3, g);
+      }
+    },
+    seminaire: {
+      title: 'Séminaire en théâtre',
+      text: '120 places · 12 rangs de 10 sièges · scène 6 × 3 m · écran de projection 4 m',
+      build(g) {
+        box(3, 0.45, 6.5, M.stage, -10.5, 0.225, 0, g);
+        const scr = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 2.6), M.screen);
+        scr.rotation.y = Math.PI / 2; scr.position.set(-hx + 0.09, 3.4, 0); g.add(scr);
+        box(0.08, 2.8, 5.4, M.frame, -hx + 0.02, 3.4, 0, g).castShadow = false;
+        // pupitre
+        box(0.5, 1.1, 0.6, M.beam, -9.6, 1.0, 2.2, g);
+        plant(-10.8, 3.6, g, 0.9); plant(-10.8, -3.6, g, 0.9);
+        for (let i = 0; i < 12; i++) {
+          const x = -6.6 + i * 1.15;
+          for (let j = 0; j < 5; j++) {
+            const z = 1.0 + j * 0.62;
+            chair(x, z, faceAngle(-1, 0), M.chairBlack, g);
+            chair(x, -z, faceAngle(-1, 0), M.chairBlack, g);
+          }
+        }
+        // table d'accueil
+        box(2.4, 0.75, 0.7, M.cloth, 9.5, 0.375, 5.6, g);
+      }
+    },
+    cocktail: {
+      title: 'Cocktail dînatoire',
+      text: '150 personnes debout · 14 mange-debout · bar de 5 m · coin salon',
+      build(g) {
+        // bar
+        box(5, 1.1, 0.7, M.beam, 0, 0.55, -5.9, g);
+        box(5.2, 0.06, 0.85, M.barTop, 0, 1.13, -5.9, g);
+        for (let i = 0; i < 6; i++) {
+          const gl = cyl(0.04, 0.03, 0.12, M.glass, -2 + i * 0.8, 1.22, -5.8, g, 10); gl.castShadow = false;
+        }
+        // mange-debout
+        const spots = [[-7, -3], [-4, -1.5], [-1, -3.4], [2.5, -2.6], [5.5, -3.8], [8.5, -2], [-6, 2.5], [-2.5, 1.2],
+          [1, 3.6], [3.8, 0.6], [6.8, 2.8], [9.8, 4.6], [-9, 5], [-4.5, 5.2]];
+        spots.forEach(p => {
+          cyl(0.32, 0.48, 1.08, M.cloth, p[0], 0.54, p[1], g, 28);
+          cyl(0.34, 0.34, 0.03, M.cloth, p[0], 1.09, p[1], g, 28);
+          const fl = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 6), M.flame); fl.position.set(p[0], 1.17, p[1]); g.add(fl);
+          cyl(0.03, 0.03, 0.08, M.cloth, p[0], 1.14, p[1], g, 8);
+        });
+        // coin salon
+        box(2.6, 0.45, 0.9, M.velvet, -10.6, 0.225, -2.5, g); box(2.6, 0.5, 0.2, M.velvet, -11.0, 0.65, -2.5, g);
+        box(0.9, 0.45, 2.2, M.velvet, -8.6, 0.225, -4.4, g);
+        box(1.0, 0.38, 0.7, M.beam, -9.5, 0.19, -3.2, g);
+        plant(-11.2, -5.8, g); plant(11.0, -6.0, g); plant(-11.2, 6.0, g); plant(3.2, -6.2, g, 0.8); plant(-3.2, -6.2, g, 0.8);
+      }
+    }
+  };
+
+  let current = null, group = null;
+  function setConfig(name) {
+    if (!configs[name]) name = 'mariage';
+    if (name === current) return;
+    current = name;
+    if (group) {
+      scene.remove(group);
+      group.traverse(o => { if (o.isMesh && o.geometry && !Object.values(G).includes(o.geometry)) o.geometry.dispose(); });
+    }
+    group = new THREE.Group(); scene.add(group);
+    configs[name].build(group);
+    document.getElementById('spec-title').textContent = configs[name].title;
+    document.getElementById('spec-text').textContent = configs[name].text;
+    document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cfg === name)));
+  }
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+    if (location.hash !== '#' + b.dataset.cfg) location.hash = b.dataset.cfg; else setConfig(b.dataset.cfg);
+  }));
+  window.addEventListener('hashchange', () => setConfig(location.hash.slice(1)));
+  setConfig(location.hash.slice(1) || 'mariage');
+
+  function resize() {
+    const w = canvas.clientWidth || window.innerWidth, h = canvas.clientHeight || window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.fov = w < 520 ? 58 : 42;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize); resize();
+
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let idle = !reduce;
+  controls.addEventListener('start', () => { idle = false; });
+  controls.autoRotate = idle; controls.autoRotateSpeed = 0.35;
+  (function loop() {
+    controls.autoRotate = idle;
+    controls.update();
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+  })();
+})();
+</script>
+</body></html>
